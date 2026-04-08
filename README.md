@@ -48,6 +48,14 @@ Supports container creation, snapshots, image management, networking, Compose, a
 
 ## Installation
 
+### Quick Install
+
+Run the following command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AirysDark/SourceForge-Docker-Manager/main/install_sf_docker.sh -o install_sf_docker.sh && chmod +x install_sf_docker.sh && ./install_sf_docker.sh
+```
+
 ### Requirements
 
 - Python 3.10+
