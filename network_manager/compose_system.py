@@ -1,6 +1,12 @@
 # network_manager/compose_system.py
 
 import json
+import os
+
+try:
+    import yaml
+except ImportError:
+    yaml = None  # YAML support requires PyYAML
 
 
 class ComposeSystem:
@@ -12,11 +18,22 @@ class ComposeSystem:
         self.fs_manager = fs_manager
 
     # ----------------------------
-    # Load Compose File
+    # Load Compose File (JSON or YAML)
     # ----------------------------
     def load(self, filepath):
-        with open(filepath, "r") as f:
-            return json.load(f)
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Compose file not found: {filepath}")
+
+        if filepath.endswith((".yml", ".yaml")):
+            if yaml is None:
+                raise ImportError("PyYAML is required to load YAML files. Install with `pip install pyyaml`")
+            with open(filepath, "r") as f:
+                data = yaml.safe_load(f)
+        else:
+            with open(filepath, "r") as f:
+                data = json.load(f)
+
+        return data
 
     # ----------------------------
     # Resolve Dependency Order
@@ -29,13 +46,10 @@ class ComposeSystem:
             if name in visited:
                 return
             visited.add(name)
-
             service = services[name]
             deps = service.get("depends_on", [])
-
             for dep in deps:
                 visit(dep)
-
             resolved.append(name)
 
         for name in services:
@@ -54,7 +68,6 @@ class ComposeSystem:
 
         for name in order:
             svc = services[name]
-
             image = svc["image"]
             cid = svc["container_name"]
 
@@ -78,15 +91,12 @@ class ComposeSystem:
     # ----------------------------
     def down(self, config):
         services = config["services"]
-
         for name, svc in services.items():
             cid = svc["container_name"]
-
             print(f"[Compose] Stopping {cid}")
-
             try:
                 self.engine.stop_container(cid, self.runtime_mgr)
-            except:
+            except Exception:
                 pass
 
     # ----------------------------
@@ -94,14 +104,11 @@ class ComposeSystem:
     # ----------------------------
     def _connect_all(self, services):
         names = list(services.keys())
-
         for i in range(len(names)):
             for j in range(i + 1, len(names)):
                 a = services[names[i]]["container_name"]
                 b = services[names[j]]["container_name"]
-
                 self.network_mgr.connect_containers(a, b)
-
         print("[Compose] Network mesh connected")
 
     # ----------------------------
@@ -109,17 +116,12 @@ class ComposeSystem:
     # ----------------------------
     def status(self, config):
         services = config["services"]
-
         status = {}
-
         for name, svc in services.items():
             cid = svc["container_name"]
-
             running = self.runtime_mgr.is_running(cid)
-
             status[name] = {
                 "container": cid,
                 "running": running
             }
-
         return status

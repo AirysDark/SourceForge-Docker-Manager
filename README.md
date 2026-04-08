@@ -123,6 +123,16 @@ sf-docker compose-up compose.json
 sf-docker compose-down compose.json
 sf-docker compose-status compose.json
 ```
+Using .yml
+```bash
+sf-docker compose-up docker-compose.yml
+sf-docker compose-status docker-compose.yml
+```
+Using .yaml
+```bash
+sf-docker compose-up docker-compose.yaml
+sf-docker compose-status docker-compose.yaml
+```
 Kubernetes-like Orchestration
 Start a deployment from kube.json:
 ```bash
