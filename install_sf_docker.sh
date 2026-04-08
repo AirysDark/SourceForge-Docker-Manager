@@ -11,6 +11,7 @@ INSTALL_DIR="$HOME/sf_docker_manager"
 PYTHON_BIN=$(command -v python3 || echo "python3")
 PIP_BIN=$(command -v pip3 || echo "pip3")
 
+# ----------------------------
 # Step 0: Detect Termux
 # ----------------------------
 IS_TERMUX=false
