@@ -1,0 +1,6 @@
+id=custom_busybox_64
+name=Custom 64-bit BusyBox
+version=v1.36.1
+versionCode=1
+author=YourName
+description=A custom 64-bit BusyBox build for ARM64 devices.

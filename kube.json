@@ -1,0 +1,14 @@
+{
+  "deployments": {
+    "web": {
+      "image": "myweb",
+      "replicas": 2,
+      "port": 8080
+    },
+    "api": {
+      "image": "myapi",
+      "replicas": 1,
+      "port": 9001
+    }
+  }
+}

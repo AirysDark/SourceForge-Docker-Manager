@@ -1,0 +1,7 @@
+{
+  "default_registry": "http://localhost:5000",
+  "registries": [
+    "http://localhost:5000",
+    "https://mydockerhub.mysite.com"
+  ]
+}
