@@ -1,4 +1,5 @@
 rust
+pyyaml
 fastapi
 uvicorn
 docker
