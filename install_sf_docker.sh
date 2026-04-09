@@ -1,8 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: forcibly installs Python 3.10 from TUR + prebuilt wheels
-# Uses Termux pkg for matplotlib to avoid source build
+# Termux: Python 3.10 + prebuilt wheels (skip matplotlib)
 
 # ----------------------------
 # Configuration
@@ -11,9 +10,11 @@ GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
 WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/sf_docker_wheels_termux.tar.gz"
 WHEEL_DIR="$HOME/sf_docker_wheels"
+REQUIREMENTS_FILE="requirements.txt"
+FILTERED_REQS="$HOME/requirements_no_matplotlib.txt"
 
 # Default Python/Pip
-PYTHON_BIN=$(command -v python3.10 || command -v python3)
+PYTHON_BIN=$(command -v python3.10 || echo "python3")
 PIP_BIN="$PYTHON_BIN -m pip"
 
 # ----------------------------
@@ -26,34 +27,28 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Force install Python 3.10 from TUR (Termux)
+# Step 0b: Force install Python 3.10 (TUR)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Installing Python 3.10 from Termux repository (TUR)..."
-
-    # Update packages and add TUR repo
     pkg update -y
     pkg install -y tur-repo
+    pkg install -y python3.10 rust clang make git curl libffi python3.10-venv
 
-    # Install Python 3.10 and build essentials (without python3.10-pip)
-    pkg install -y python3.10 rust clang make git curl libffi
-
-    # Ensure pip is available for Python 3.10
-    $PYTHON_BIN -m ensurepip --upgrade
-
-    # Set Python 3.10 as session default
     PYTHON_BIN=$(command -v python3.10)
     PIP_BIN="$PYTHON_BIN -m pip"
     export PATH="$(dirname $PYTHON_BIN):$PATH"
 
     PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     echo "[INFO] Using Python version: $PY_VER"
+fi
 
-    # ----------------------------
-    # Install Matplotlib via Termux pkg instead of pip
-    # ----------------------------
-    echo "[INFO] Installing Matplotlib from Termux pkg..."
-    pkg install -y matplotlib
+# ----------------------------
+# Step 0c: Install matplotlib via pkg to skip compilation
+# ----------------------------
+if [ "$IS_TERMUX" = true ]; then
+    echo "[INFO] Installing matplotlib via Termux pkg..."
+    pkg install -y python-matplotlib
 fi
 
 # ----------------------------
@@ -80,35 +75,33 @@ fi
 echo "[INFO] Python version $PY_VER OK"
 
 # ----------------------------
-# Step 3: Install pip dependencies
+# Step 3: Install pip dependencies (skip matplotlib)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: installing prebuilt wheels for remaining packages..."
+    echo "[INFO] Installing prebuilt wheels (excluding matplotlib)..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
 
-    # Remove matplotlib from requirements to avoid pip build
-    TEMP_REQ=$(mktemp)
-    grep -v "matplotlib" requirements.txt > "$TEMP_REQ"
+    # Filter out matplotlib from requirements
+    grep -v "^matplotlib" "$REQUIREMENTS_FILE" > "$FILTERED_REQS"
 
-    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r "$TEMP_REQ" || {
+    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r "$FILTERED_REQS" || {
         echo "[WARN] Prebuilt wheels failed. Installing dependencies from PyPI..."
         $PIP_BIN install --upgrade pip wheel setuptools
-        $PIP_BIN install --user -r "$TEMP_REQ"
+        $PIP_BIN install --user -r "$FILTERED_REQS"
     }
-    rm "$TEMP_REQ"
 else
-    if [ -f "requirements.txt" ]; then
+    if [ -f "$REQUIREMENTS_FILE" ]; then
         echo "[INFO] Installing dependencies from PyPI..."
-        $PIP_BIN install --user -r requirements.txt
+        $PIP_BIN install --user -r "$REQUIREMENTS_FILE"
     else
         echo "[WARN] requirements.txt not found, skipping"
     fi
 fi
 
 # ----------------------------
-# Step 4: Install editable package
+# Step 4: Install editable package (console script)
 # ----------------------------
 echo "[INFO] Installing SourceForge-Docker-Manager package..."
 $PIP_BIN install --user -e .
