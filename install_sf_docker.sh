@@ -58,7 +58,11 @@ if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Extracting wheels..."
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     echo "[INFO] Installing wheels offline..."
-    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt
+    # Use only wheels that match Termux/arm64
+    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
+        echo "[ERROR] Failed to install prebuilt wheels. Check that the tar contains all .whl files."
+        exit 1
+    }
 else
     if [ -f "requirements.txt" ]; then
         echo "[INFO] Installing dependencies from PyPI..."
