@@ -2,6 +2,7 @@
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
 # Termux: forcibly installs Python 3.10 from TUR + prebuilt wheels
+# Uses Termux pkg for matplotlib to avoid source build
 
 # ----------------------------
 # Configuration
@@ -12,7 +13,7 @@ WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/down
 WHEEL_DIR="$HOME/sf_docker_wheels"
 
 # Default Python/Pip
-PYTHON_BIN=$(command -v python3.10 || echo "python3")
+PYTHON_BIN=$(command -v python3.10 || command -v python3)
 PIP_BIN="$PYTHON_BIN -m pip"
 
 # ----------------------------
@@ -47,6 +48,12 @@ if [ "$IS_TERMUX" = true ]; then
 
     PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     echo "[INFO] Using Python version: $PY_VER"
+
+    # ----------------------------
+    # Install Matplotlib via Termux pkg instead of pip
+    # ----------------------------
+    echo "[INFO] Installing Matplotlib from Termux pkg..."
+    pkg install -y matplotlib
 fi
 
 # ----------------------------
@@ -76,15 +83,21 @@ echo "[INFO] Python version $PY_VER OK"
 # Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: installing prebuilt wheels..."
+    echo "[INFO] Termux detected: installing prebuilt wheels for remaining packages..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
-    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
+
+    # Remove matplotlib from requirements to avoid pip build
+    TEMP_REQ=$(mktemp)
+    grep -v "matplotlib" requirements.txt > "$TEMP_REQ"
+
+    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r "$TEMP_REQ" || {
         echo "[WARN] Prebuilt wheels failed. Installing dependencies from PyPI..."
         $PIP_BIN install --upgrade pip wheel setuptools
-        $PIP_BIN install --user -r requirements.txt
+        $PIP_BIN install --user -r "$TEMP_REQ"
     }
+    rm "$TEMP_REQ"
 else
     if [ -f "requirements.txt" ]; then
         echo "[INFO] Installing dependencies from PyPI..."
