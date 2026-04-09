@@ -67,7 +67,7 @@ if [ "$IS_TERMUX" = true ]; then
     PIP_BIN="$PYTHON_PREFIX/bin/pip"
 
     # Symlink python3 → python for scripts that use python3
-    ln -sf "$PYTHON_BIN" "$PYTHON_PREFIX/bin/python3"
+    ln -sf "$PYTHON_BIN" "$PYTHON_PREFIX/bin/python"
 
     # Verify local installation
     PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
