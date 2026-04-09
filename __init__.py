@@ -3,23 +3,26 @@
 """
 SourceForge-Docker-Manager Core Package Initialization
 
-This module initializes the root package and exposes core components.
-It provides access to:
+This module initializes the root package and exposes core components:
 - RuntimeManager: manages container lifecycle and logging
-- Any other utilities or submodules added in the future
+- DockerSupport: Docker-related utilities
+- FsSnapshots: filesystem snapshot management
+- ImageManager (imagemanager): container image management
+- NetworkManager: container networking management
+- Registry: registry server handling
+- EngineCore: core engine logic
 
 Designed to be fully compatible with Termux Python 3.10+.
 """
 
-# Import core runtime manager
+# Import core modules
 from .runtime_manager import RuntimeManager
 from .docker_support import DockerSupport
 from .fs_snapshots import FsSnapshots
-from .image_manager import imagemanager
+from .image_manager import ImageManager
 from .network_manager import NetworkManager
 from .registry import Registry
 from .engine_core import EngineCore
-
 
 # Explicitly define public API
 __all__ = [
@@ -27,7 +30,7 @@ __all__ = [
     "DockerSupport",
     "FsSnapshots",
     "EngineCore",
-    "imagemanager",
+    "ImageManager",
     "NetworkManager",
     "Registry",
 ]
