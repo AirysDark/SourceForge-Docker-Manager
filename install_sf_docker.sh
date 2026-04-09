@@ -25,10 +25,10 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Ensure Python 3.10 (TUR) in Termux
+# Step 0b: Install Python 3.10 via Termux User Repo (TUR)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')") || true
+    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) || PY_VER="0"
     if [[ "$PY_VER" < "3.10" ]]; then
         echo "[INFO] Installing Python 3.10 from Termux repository..."
         pkg update -y
@@ -41,6 +41,7 @@ if [ "$IS_TERMUX" = true ]; then
         echo "[INFO] Using Python version: $PY_VER"
     else
         echo "[INFO] Python 3.10+ already installed: $PY_VER"
+        # Use the current Python
         PYTHON_BIN=$(command -v python3)
         PIP_BIN=$(command -v pip3)
     fi
@@ -74,13 +75,10 @@ echo "[INFO] Python version $PY_VER OK"
 # Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: installing prebuilt wheels..."
+    echo "[INFO] Termux detected: attempting prebuilt wheels..."
     mkdir -p "$WHEEL_DIR"
-    echo "[INFO] Downloading prebuilt wheels tarball..."
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
-    echo "[INFO] Extracting wheels..."
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
-    echo "[INFO] Installing wheels offline..."
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
         echo "[WARN] Prebuilt wheels failed. Installing dependencies from PyPI..."
         $PIP_BIN install --upgrade pip wheel setuptools
