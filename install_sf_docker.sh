@@ -12,9 +12,8 @@ WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/down
 WHEEL_DIR="$HOME/sf_docker_wheels"
 
 # Default Python/Pip
-PYTHON_BIN=$(command -v python3 || echo "python3")
-PIP_BIN=$(command -v pip3 || echo "pip3")
-
+PYTHON_BIN=$(command -v python3.10)
+PIP_BIN="$PYTHON_BIN -m pip"
 # ----------------------------
 # Step 0: Detect Termux
 # ----------------------------
