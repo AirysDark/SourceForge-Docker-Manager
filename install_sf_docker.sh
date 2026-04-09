@@ -8,6 +8,8 @@
 # ----------------------------
 GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
+WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/raw/main/sf_docker_wheels.tar.gz"
+WHEEL_DIR="$HOME/sf_docker_wheels"
 PYTHON_BIN=$(command -v python3 || echo "python3")
 PIP_BIN=$(command -v pip3 || echo "pip3")
 
@@ -49,12 +51,15 @@ echo "[INFO] Python version $PY_VER OK"
 # ----------------------------
 if [ -f "requirements.txt" ]; then
     echo "[INFO] Installing dependencies..."
-
     if [ "$IS_TERMUX" = true ]; then
-        echo "[INFO] Installing with prebuilt wheels (Termux)"
-        # Use --prefer-binary to avoid building from source
-        $PIP_BIN install --user --prefer-binary -r requirements.txt
+        echo "[INFO] Downloading prebuilt wheels for Termux..."
+        mkdir -p "$WHEEL_DIR"
+        curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels.tar.gz"
+        tar -xzvf "$WHEEL_DIR/sf_docker_wheels.tar.gz" -C "$WHEEL_DIR"
+        echo "[INFO] Installing wheels offline..."
+        $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt
     else
+        echo "[INFO] Installing from PyPI..."
         $PIP_BIN install --user -r requirements.txt
     fi
 else
