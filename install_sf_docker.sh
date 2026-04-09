@@ -51,11 +51,11 @@ echo "[INFO] Python version $PY_VER OK"
 # Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: using prebuilt wheels, skipping requirements.txt from PyPI..."
+    echo "[INFO] Termux detected: using prebuilt wheels..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels.tar.gz" -C "$WHEEL_DIR"
-    echo "[INFO] Installing prebuilt wheels offline..."
+    echo "[INFO] Installing wheels offline..."
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt
 else
     if [ -f "requirements.txt" ]; then
