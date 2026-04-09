@@ -34,6 +34,8 @@ class ImageManager:
     # Validation
     # ----------------------------
     def _validate_layers(self, layers):
+        if not isinstance(layers, list):
+            raise TypeError("Layers must be a list")
         for snap in layers:
             meta = self.fs_manager.inspect_snapshot(snap)
             if not meta:
@@ -48,7 +50,8 @@ class ImageManager:
 
         self._validate_layers(layers)
 
-        self.images.setdefault(image_name, {})
+        if image_name not in self.images:
+            self.images[image_name] = {}
 
         self.images[image_name][tag] = {
             "name": image_name,
@@ -69,16 +72,13 @@ class ImageManager:
 
         layers = []
         current = snapshot_id
-
         while current:
             layers.append(current)
             meta = self.fs_manager.inspect_snapshot(current)
             current = meta.get("parent")
 
         layers.reverse()
-
         self.register_image_layers(image_name, layers, tag)
-
         return snapshot_id
 
     # ----------------------------
@@ -87,10 +87,8 @@ class ImageManager:
     def get_image_layers(self, image_name, tag="latest"):
         if image_name not in self.images:
             raise ValueError(f"Image '{image_name}' not found")
-
         if tag not in self.images[image_name]:
             raise ValueError(f"Tag '{tag}' not found")
-
         return self.images[image_name][tag]["layers"]
 
     # ----------------------------
@@ -98,7 +96,6 @@ class ImageManager:
     # ----------------------------
     def create_container_from_image(self, image_name, container_id, tag="latest"):
         layers = self.get_image_layers(image_name, tag)
-
         container_path = os.path.join(self.fs_manager.base_path, container_id)
 
         if os.path.exists(container_path):
@@ -117,21 +114,17 @@ class ImageManager:
     def export_image(self, image_name, tag="latest", output_file=None):
         if image_name not in self.images:
             raise ValueError("Image not found")
-
         if tag not in self.images[image_name]:
             raise ValueError("Tag not found")
 
         image = self.images[image_name][tag]
         layers = image["layers"]
-
         output_file = output_file or f"{image_name}_{tag}.tar"
 
         with tarfile.open(output_file, "w") as tar:
             meta_path = "metadata.json"
-
             with open(meta_path, "w") as f:
                 json.dump(image, f, indent=2)
-
             tar.add(meta_path, arcname="metadata.json")
             os.remove(meta_path)
 
@@ -150,17 +143,14 @@ class ImageManager:
             raise FileNotFoundError(tar_file)
 
         temp_dir = "tmp_import"
-
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-
         os.makedirs(temp_dir, exist_ok=True)
 
         with tarfile.open(tar_file, "r") as tar:
             tar.extractall(temp_dir)
 
         meta_file = os.path.join(temp_dir, "metadata.json")
-
         if not os.path.exists(meta_file):
             raise RuntimeError("Invalid image archive")
 
@@ -171,25 +161,23 @@ class ImageManager:
         tag = image["tag"]
 
         layers_dir = os.path.join(temp_dir, "layers")
-
         if os.path.exists(layers_dir):
             for layer in os.listdir(layers_dir):
                 src = os.path.join(layers_dir, layer)
                 dest = os.path.join(self.fs_manager.snapshots_path, layer)
-
                 if not os.path.exists(dest):
                     shutil.copytree(src, dest)
 
-        self.images.setdefault(image_name, {})
+        if image_name not in self.images:
+            self.images[image_name] = {}
         self.images[image_name][tag] = image
-
         self._save_images()
-        shutil.rmtree(temp_dir)
 
+        shutil.rmtree(temp_dir)
         return image_name
 
     # ----------------------------
-    # Registry Push (NO requests lib)
+    # Registry Push (No requests lib)
     # ----------------------------
     def push_image(self, image_name, registry_url, tag="latest"):
         tar_file = self.export_image(image_name, tag)
@@ -201,10 +189,7 @@ class ImageManager:
             f"{registry_url}/push",
             data=data,
             method="POST",
-            headers={
-                "Content-Type": "application/octet-stream",
-                "X-Filename": os.path.basename(tar_file)
-            }
+            headers={"Content-Type": "application/octet-stream", "X-Filename": os.path.basename(tar_file)}
         )
 
         try:
@@ -219,7 +204,6 @@ class ImageManager:
     # ----------------------------
     def pull_remote(self, tar_name, registry_url):
         url = f"{registry_url}/pull?name={tar_name}"
-
         local_file = tar_name
 
         try:
@@ -244,10 +228,8 @@ class ImageManager:
     def inspect_image(self, image_name, tag="latest"):
         if image_name not in self.images:
             raise ValueError("Image not found")
-
         if tag not in self.images[image_name]:
             raise ValueError("Tag not found")
-
         return self.images[image_name][tag]
 
     # ----------------------------
@@ -260,18 +242,12 @@ class ImageManager:
         if tag:
             if tag not in self.images[image_name]:
                 raise ValueError("Tag not found")
-
             del self.images[image_name][tag]
-
             if not self.images[image_name]:
                 del self.images[image_name]
-
         else:
             if not force and len(self.images[image_name]) > 1:
-                raise RuntimeError(
-                    f"Image '{image_name}' has multiple tags. Use force=True."
-                )
-
+                raise RuntimeError(f"Image '{image_name}' has multiple tags. Use force=True.")
             del self.images[image_name]
 
         self._save_images()
