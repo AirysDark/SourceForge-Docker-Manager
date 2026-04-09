@@ -1,13 +1,3 @@
-# SourceForge-Docker-Manager Termux Python 3.10 compatible
-# Core runtime and container management modules
--e ./runtime_manager
--e ./docker_support
--e ./fs_snapshots
--e ./image_manager
--e ./network_manager
--e ./registry
--e ./engine_core
-
 # Python libraries still required for other features
 pyyaml
 fastapi
