@@ -9,8 +9,7 @@ setup(
     install_requires=[
         "fastapi",
         "uvicorn",
-        "docker",
-        "pydantic"
+        "pyyaml",   # keep only packages that need compilation/wheels
     ],
     entry_points={
         "console_scripts": [
