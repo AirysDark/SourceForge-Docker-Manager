@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: installs Python 3.10 from TUR + manual module dependencies
+# Termux: forcibly installs Python 3.10 from TUR + manual modules
 
 # ----------------------------
 # Configuration
@@ -24,23 +24,28 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ]; then
 fi
 
 # ----------------------------
-# Step 0b: Force install Python 3.10 via TUR
+# Step 0b: Force install Python 3.10 via TUR (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) || PY_VER="0"
-    if [[ "$PY_VER" < "3.10" ]]; then
-        echo "[INFO] Installing Python 3.10 from Termux repository..."
-        pkg update -y
-        pkg install -y tur-repo
-        pkg install -y python3.10 clang make git curl libffi
-        PYTHON_BIN=$(command -v python3.10)
-        PIP_BIN="$PYTHON_BIN -m pip"
-        export PATH="$(dirname $PYTHON_BIN):$PATH"
-        PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-        echo "[INFO] Using Python version: $PY_VER"
-    else
-        echo "[INFO] Python 3.10+ already installed: $PY_VER"
-    fi
+    echo "[INFO] Forcing installation of Python 3.10 from Termux repository (TUR)..."
+
+    # Update packages and add TUR repo
+    pkg update -y
+    pkg install -y tur-repo
+
+    # Force install Python 3.10 + build essentials
+    pkg install -y python3.10 clang make git curl libffi
+
+    # Ensure pip is available for Python 3.10
+    $PYTHON_BIN -m ensurepip --upgrade
+
+    # Use TUR Python 3.10 for this session
+    PYTHON_BIN=$(command -v python3.10)
+    PIP_BIN="$PYTHON_BIN -m pip"
+    export PATH="$(dirname $PYTHON_BIN):$PATH"
+
+    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    echo "[INFO] Forced TUR Python version: $PY_VER"
 fi
 
 # ----------------------------
@@ -67,22 +72,24 @@ fi
 echo "[INFO] Python version $PY_VER OK"
 
 # ----------------------------
-# Step 3: Install pip dependencies from PyPI
+# Step 3: Install pip dependencies
 # ----------------------------
-echo "[INFO] Installing dependencies from PyPI..."
+echo "[INFO] Installing dependencies from requirements.txt..."
 $PIP_BIN install --upgrade pip wheel setuptools
 if [ -f "$REQUIREMENTS" ]; then
     $PIP_BIN install --user -r "$REQUIREMENTS"
 else
-    echo "[WARN] requirements.txt not found, skipping"
+    echo "[WARN] requirements.txt not found, skipping pip installs"
 fi
 
 # ----------------------------
-# Step 4: Install editable manual Python modules
+# Step 4: Install manual Python modules
 # ----------------------------
 echo "[INFO] Installing manual Python modules..."
 for mod in runtime_manager docker_support fs_snapshots image_manager network_manager registry engine_core; do
-    $PIP_BIN install --user -e "./$mod"
+    if [ -d "./$mod" ]; then
+        $PIP_BIN install --user -e "./$mod"
+    fi
 done
 
 # ----------------------------
