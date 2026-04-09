@@ -28,7 +28,7 @@ if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Forcing installation of Python 3.10 from TUR..."
 
     # Remove any existing Python
-    pkg uninstall -y python python-pip || true
+    pkg install -y python python-pip || true
 
     # Update packages and ensure TUR repo
     pkg update -y
