@@ -51,7 +51,8 @@ if [ "$IS_TERMUX" = true ]; then
 
     # Download Python 3.10.x source
     PYTHON_VERSION="3.10.14"
-    cd /tmp
+    mkdir python3
+    cd python3
     wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
     tar -xzf Python-${PYTHON_VERSION}.tgz
     cd Python-${PYTHON_VERSION}
