@@ -24,7 +24,6 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# ----------------------------
 # Step 0a: Install Rust & build essentials if Termux
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
@@ -69,7 +68,7 @@ if [ "$IS_TERMUX" = true ]; then
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     echo "[INFO] Installing wheels offline..."
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
-        echo "[WARN] Prebuilt wheels failed. Trying to build locally..."
+        echo "[WARN] Prebuilt wheels failed. Installing dependencies locally..."
         $PIP_BIN install --upgrade pip wheel setuptools
         $PIP_BIN install --user -r requirements.txt
     }
