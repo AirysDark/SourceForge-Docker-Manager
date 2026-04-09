@@ -24,12 +24,13 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
+# ----------------------------
 # Step 0a: Install Rust & build essentials if Termux
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Installing Rust and build tools for Termux..."
     pkg update -y
-    pkg install -y clang make git curl rust python python-dev python3-pip libffi-dev
+    pkg install -y clang make git curl rust python python-pip libffi
 fi
 
 # ----------------------------
