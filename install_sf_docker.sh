@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: always installs Python 3.10 from TUR + prebuilt wheels
+# Termux: forcibly installs Python 3.10 from TUR + prebuilt wheels
 
 # ----------------------------
 # Configuration
@@ -25,19 +25,19 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Force install Python 3.10 from TUR (Termux)
+# Step 0b: Force install Python 3.10 from TUR
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Installing Python 3.10 from Termux repository (TUR)..."
+    echo "[INFO] Forcing Python 3.10 installation from TUR..."
 
-    # Ensure TUR repository
+    # Update package lists and install TUR repo
     pkg update -y
     pkg install -y tur-repo
 
-    # Install Python 3.10 + pip and build tools
+    # Force install Python 3.10 + pip + build tools
     pkg install -y python3.10 python3.10-pip rust clang make git curl libffi
 
-    # Set Python 3.10 as session default
+    # Set Python 3.10 as default for session
     PYTHON_BIN=$(command -v python3.10)
     PIP_BIN=$(command -v pip3.10)
     export PATH="$(dirname $PYTHON_BIN):$PATH"
@@ -78,7 +78,7 @@ if [ "$IS_TERMUX" = true ]; then
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
-        echo "[WARN] Prebuilt wheels failed. Installing from PyPI..."
+        echo "[WARN] Prebuilt wheels failed. Installing dependencies from PyPI..."
         $PIP_BIN install --upgrade pip wheel setuptools
         $PIP_BIN install --user -r requirements.txt
     }
