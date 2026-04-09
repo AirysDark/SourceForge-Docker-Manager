@@ -3,14 +3,15 @@ from setuptools import setup, find_packages
 setup(
     name="sourceforge_docker_manager",
     version="0.1.0",
-    description="User-space Python container engine, uDocker-style",
+    description="User-space Python container engine, Termux-compatible",
     author="AirysDark",
     packages=find_packages(),
     install_requires=[
-        "fastapi",
-        "uvicorn",
-        "docker",
-        "pydantic"
+        "dataclasses",
+        "flask",
+        "requests",
+        "pyyaml",
+        "uvicorn"
     ],
     entry_points={
         "console_scripts": [
