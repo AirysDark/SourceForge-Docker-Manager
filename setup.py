@@ -16,5 +16,5 @@ setup(
             "sf-docker=sourceforge_docker_manager.main:main_cli"
         ]
     },
-    python_requires=">=3.10",
+    python_requires=">=3.13",
 )
