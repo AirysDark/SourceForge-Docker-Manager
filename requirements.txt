@@ -1,9 +1,5 @@
-# External dependencies
-pyyaml
-fastapi
-uvicorn
-
-# Manual modules (editable installs)
+# SourceForge-Docker-Manager Termux Python 3.10 compatible
+# Core runtime and container management modules
 -e ./runtime_manager
 -e ./docker_support
 -e ./fs_snapshots
@@ -11,3 +7,8 @@ uvicorn
 -e ./network_manager
 -e ./registry
 -e ./engine_core
+
+# Python libraries still required for other features
+pyyaml
+fastapi
+uvicorn
