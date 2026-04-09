@@ -1,4 +1,3 @@
 # Python libraries still required for other features
 pyyaml
-fastapi
 uvicorn
