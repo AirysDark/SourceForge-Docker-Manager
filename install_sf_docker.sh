@@ -40,9 +40,9 @@ if [ "$IS_TERMUX" = true ]; then
 
     # Install build essentials
     pkg update -y
-    pkg install -y clang make git curl wget libffi zlib xz bzip2 bzip2-dev \
-        libcrypt libcrypt-dev ncurses ncurses-dev libsqlite libsqlite-dev \
-        readline readline-dev tk tk-dev
+    pkg install -y clang make git curl wget libffi zlib bzip2 \
+        libcrypt ncurses libsqlite \
+        readline tk
 
     # Local installation prefix
     PYTHON_PREFIX="$HOME/.localpython310"
