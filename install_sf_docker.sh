@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Supports Termux with prebuilt wheels to avoid long builds
+# Supports Termux: installs Rust, build essentials, or uses prebuilt wheels if available
 
 # ----------------------------
 # Configuration
@@ -21,6 +21,15 @@ IS_TERMUX=false
 if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != "" ]; then
     IS_TERMUX=true
     echo "[INFO] Termux environment detected."
+fi
+
+# ----------------------------
+# Step 0a: Install Rust & build essentials if Termux
+# ----------------------------
+if [ "$IS_TERMUX" = true ]; then
+    echo "[INFO] Installing Rust and build tools for Termux..."
+    pkg update -y
+    pkg install -y clang make git curl rust python python-dev python3-pip libffi-dev
 fi
 
 # ----------------------------
@@ -58,10 +67,10 @@ if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Extracting wheels..."
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     echo "[INFO] Installing wheels offline..."
-    # Use only wheels that match Termux/arm64
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
-        echo "[ERROR] Failed to install prebuilt wheels. Check that the tar contains all .whl files."
-        exit 1
+        echo "[WARN] Prebuilt wheels failed. Trying to build locally..."
+        $PIP_BIN install --upgrade pip wheel setuptools
+        $PIP_BIN install --user -r requirements.txt
     }
 else
     if [ -f "requirements.txt" ]; then
