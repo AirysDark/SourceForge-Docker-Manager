@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: prebuilt Python 3.10 + prebuilt wheels if available
+# Termux: installs Python 3.10 from TUR and prebuilt wheels if available
 
 # ----------------------------
 # Configuration
@@ -9,10 +9,9 @@
 GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
 WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/sf_docker_wheels_termux.tar.gz"
-PREBUILT_PYTHON_URL="https://github.com/AirysDark/Termux-Python-Prebuilt/releases/download/3.10.14/python3.10-termux.tar.gz"
 WHEEL_DIR="$HOME/sf_docker_wheels"
-PYTHON_PREFIX="$HOME/.localpython310"
 
+# Default Python/Pip
 PYTHON_BIN=$(command -v python3 || echo "python3")
 PIP_BIN=$(command -v pip3 || echo "pip3")
 
@@ -26,32 +25,25 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Install prebuilt Python 3.10 for Termux
+# Step 0b: Ensure Python 3.10 (TUR) in Termux
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Installing prebuilt Python 3.10 for Termux..."
-
-    # Remove existing Python if any
-    pkg uninstall -y python python-pip || true
-
-    # Download prebuilt Python 3.10 tarball if not exists
-    if [ ! -f "$HOME/python3.10-termux.tar.gz" ]; then
-        echo "[INFO] Downloading prebuilt Python 3.10..."
-        curl -L "$PREBUILT_PYTHON_URL" -o "$HOME/python3.10-termux.tar.gz"
+    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')") || true
+    if [[ "$PY_VER" < "3.10" ]]; then
+        echo "[INFO] Installing Python 3.10 from Termux repository..."
+        pkg update -y
+        pkg install -y tur-repo
+        pkg install -y python3.10 python3.10-pip rust clang make git curl libffi
+        PYTHON_BIN=$(command -v python3.10)
+        PIP_BIN=$(command -v pip3.10)
+        export PATH="$(dirname $PYTHON_BIN):$PATH"
+        PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        echo "[INFO] Using Python version: $PY_VER"
+    else
+        echo "[INFO] Python 3.10+ already installed: $PY_VER"
+        PYTHON_BIN=$(command -v python3)
+        PIP_BIN=$(command -v pip3)
     fi
-
-    # Extract prebuilt Python
-    mkdir -p "$PYTHON_PREFIX"
-    tar -xzf "$HOME/python3.10-termux.tar.gz" -C "$PYTHON_PREFIX" --strip-components=1
-
-    # Use the prebuilt Python for session
-    export PATH="$PYTHON_PREFIX/bin:$PATH"
-    PYTHON_BIN="$PYTHON_PREFIX/bin/python"
-    PIP_BIN="$PYTHON_PREFIX/bin/pip"
-
-    # Verify
-    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    echo "[INFO] Using prebuilt Python version: $PY_VER"
 fi
 
 # ----------------------------
