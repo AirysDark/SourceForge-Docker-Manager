@@ -7,7 +7,7 @@ setup(
     author="AirysDark",
     packages=find_packages(),
     install_requires=[
-        "fastapi",
+        "Starlette",
         "uvicorn",
         "pyyaml",   # keep only packages that need compilation/wheels
     ],
