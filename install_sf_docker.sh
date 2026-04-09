@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: installs Python 3.10 from TUR and prebuilt wheels if available
+# Termux: always installs Python 3.10 from TUR + prebuilt wheels
 
 # ----------------------------
 # Configuration
@@ -25,26 +25,25 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Install Python 3.10 via Termux User Repo (TUR)
+# Step 0b: Force install Python 3.10 from TUR (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) || PY_VER="0"
-    if [[ "$PY_VER" < "3.10" ]]; then
-        echo "[INFO] Installing Python 3.10 from Termux repository..."
-        pkg update -y
-        pkg install -y tur-repo
-        pkg install -y python3.10 python3.10-pip rust clang make git curl libffi
-        PYTHON_BIN=$(command -v python3.10)
-        PIP_BIN=$(command -v pip3.10)
-        export PATH="$(dirname $PYTHON_BIN):$PATH"
-        PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-        echo "[INFO] Using Python version: $PY_VER"
-    else
-        echo "[INFO] Python 3.10+ already installed: $PY_VER"
-        # Use the current Python
-        PYTHON_BIN=$(command -v python3)
-        PIP_BIN=$(command -v pip3)
-    fi
+    echo "[INFO] Installing Python 3.10 from Termux repository (TUR)..."
+
+    # Ensure TUR repository
+    pkg update -y
+    pkg install -y tur-repo
+
+    # Install Python 3.10 + pip and build tools
+    pkg install -y python3.10 python3.10-pip rust clang make git curl libffi
+
+    # Set Python 3.10 as session default
+    PYTHON_BIN=$(command -v python3.10)
+    PIP_BIN=$(command -v pip3.10)
+    export PATH="$(dirname $PYTHON_BIN):$PATH"
+
+    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    echo "[INFO] Using Python version: $PY_VER"
 fi
 
 # ----------------------------
@@ -61,11 +60,10 @@ else
 fi
 
 # ----------------------------
-# Step 2: Ensure Python 3.10+
+# Step 2: Verify Python 3.10+
 # ----------------------------
 PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-REQUIRED_VER="3.10"
-if [[ "$PY_VER" < "$REQUIRED_VER" ]]; then
+if [[ "$PY_VER" < "3.10" ]]; then
     echo "[ERROR] Python 3.10+ required. Found $PY_VER"
     exit 1
 fi
@@ -75,12 +73,12 @@ echo "[INFO] Python version $PY_VER OK"
 # Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: attempting prebuilt wheels..."
+    echo "[INFO] Installing prebuilt Termux wheels..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
-        echo "[WARN] Prebuilt wheels failed. Installing dependencies from PyPI..."
+        echo "[WARN] Prebuilt wheels failed. Installing from PyPI..."
         $PIP_BIN install --upgrade pip wheel setuptools
         $PIP_BIN install --user -r requirements.txt
     }
@@ -94,13 +92,13 @@ else
 fi
 
 # ----------------------------
-# Step 4: Install editable package (console script)
+# Step 4: Install editable package
 # ----------------------------
 echo "[INFO] Installing SourceForge-Docker-Manager package..."
 $PIP_BIN install --user -e .
 
 # ----------------------------
-# Step 5: Completion message
+# Step 5: Completion
 # ----------------------------
 echo "[DONE] SourceForge-Docker-Manager installed!"
 echo "You can now run the CLI via: sf-docker <command>"
