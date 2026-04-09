@@ -1,7 +1,7 @@
 #!/bin/bash
 # install_sf_docker.sh
 # One-shot installer for SourceForge-Docker-Manager
-# Termux: uninstall existing Python, install prebuilt Python 3.10, then use prebuilt wheels
+# Supports Termux: installs Rust, build essentials, or uses prebuilt wheels if available
 
 # ----------------------------
 # Configuration
@@ -10,14 +10,12 @@ GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
 WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/sf_docker_wheels_termux.tar.gz"
 WHEEL_DIR="$HOME/sf_docker_wheels"
-PYTHON_VERSION="3.10.14"
-PYTHON_PREFIX="$HOME/.localpython310"
 
-# Prebuilt Python tarball URL for Termux/arm64
-PYTHON_TAR_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/Python-${PYTHON_VERSION}-termux-arm64.tar.gz"
+PYTHON_BIN=$(command -v python3 || echo "python3")
+PIP_BIN=$(command -v pip3 || echo "pip3")
 
 # ----------------------------
-# Detect Termux
+# Step 0: Detect Termux
 # ----------------------------
 IS_TERMUX=false
 if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != "" ]; then
@@ -26,51 +24,57 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0: Install build essentials & Rust for Termux
+# Step 0a: Install Rust & build essentials if Termux
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Installing Termux build essentials..."
+    echo "[INFO] Installing Rust and build tools for Termux..."
     pkg update -y
-    pkg install -y clang make git curl pkg-config libffi libcrypt libcrypt-dev zlib zlib-dev xz xz-utils wget tar rust
+    pkg install -y clang make git curl rust python python-pip libffi
 fi
 
 # ----------------------------
-# Step 0a: Remove existing Python (optional)
+# Step 0b: Compile and install Python 3.10 locally (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Removing system Python (will install Python 3.10 locally)..."
-    pkg uninstall -y python python-pip
-fi
+    echo "[INFO] Termux detected: installing Python 3.10 locally (isolated)..."
 
-# ----------------------------
-# Step 0b: Download and install prebuilt Python 3.10
-# ----------------------------
-if [ ! -d "$PYTHON_PREFIX" ]; then
-    echo "[INFO] Downloading prebuilt Python 3.10..."
+    # Install build essentials
+    pkg update -y
+    pkg install -y clang make git curl wget libffi bzip2 \
+        libcrypt ncurses libsqlite \
+        readline bzip2 tk
+
+    # Local installation prefix
+    PYTHON_PREFIX="$HOME/.localpython310"
     mkdir -p "$PYTHON_PREFIX"
-    wget -O /tmp/Python-${PYTHON_VERSION}-termux-arm64.tar.gz "$PYTHON_TAR_URL"
-    echo "[INFO] Extracting Python..."
-    tar -xzf /tmp/Python-${PYTHON_VERSION}-termux-arm64.tar.gz -C "$PYTHON_PREFIX"
+
+    # Download Python 3.10.x source
+    PYTHON_VERSION="3.10.14"
+    cd /tmp
+    wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
+    tar -xzf Python-${PYTHON_VERSION}.tgz
+    cd Python-${PYTHON_VERSION}
+
+    # Configure, compile, and install to local prefix
+    ./configure --prefix="$PYTHON_PREFIX" --enable-optimizations --with-ensurepip=install
+    make -j$(nproc)
+    make install
+
+    # Use local Python as 'python' only
+    export PATH="$PYTHON_PREFIX/bin:$PATH"
+    PYTHON_BIN="$PYTHON_PREFIX/bin/python"
+    PIP_BIN="$PYTHON_PREFIX/bin/pip"
+
+    # Symlink python3 → python for scripts that use python3
+    ln -sf "$PYTHON_BIN" "$PYTHON_PREFIX/bin/python3"
+
+    # Verify local installation
+    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    echo "[INFO] Using local Python version: $PY_VER (system Python untouched)"
 fi
-
-export PATH="$PYTHON_PREFIX/bin:$PATH"
-PYTHON_BIN="$PYTHON_PREFIX/bin/python3"
-PIP_BIN="$PYTHON_PREFIX/bin/pip3"
-
-# Verify Python version
-PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-REQUIRED_VER="3.10"
-if [[ "$PY_VER" < "$REQUIRED_VER" ]]; then
-    echo "[ERROR] Failed to install Python 3.10. Found $PY_VER"
-    exit 1
-fi
-echo "[INFO] Python $PY_VER ready."
-
-# Upgrade pip, wheel, setuptools
-$PYTHON_BIN -m pip install --upgrade pip wheel setuptools
 
 # ----------------------------
-# Step 1: Clone or update SourceForge-Docker-Manager
+# Step 1: Clone or update repo
 # ----------------------------
 if [ -d "$INSTALL_DIR" ]; then
     echo "[INFO] Repo exists. Pulling latest changes..."
@@ -83,17 +87,31 @@ else
 fi
 
 # ----------------------------
-# Step 2: Install pip dependencies
+# Step 2: Ensure Python 3.10+
+# ----------------------------
+PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+REQUIRED_VER="3.10"
+if [[ "$PY_VER" < "$REQUIRED_VER" ]]; then
+    echo "[ERROR] Python 3.10+ required. Found $PY_VER"
+    exit 1
+fi
+echo "[INFO] Python version $PY_VER OK"
+
+# ----------------------------
+# Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
     echo "[INFO] Termux detected: using prebuilt wheels..."
     mkdir -p "$WHEEL_DIR"
+    echo "[INFO] Downloading prebuilt wheels tarball..."
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
+    echo "[INFO] Extracting wheels..."
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
     echo "[INFO] Installing wheels offline..."
     $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || {
-        echo "[WARN] Prebuilt wheels failed, installing from source..."
-        $PIP_BIN install -r requirements.txt
+        echo "[WARN] Prebuilt wheels failed. Installing dependencies locally..."
+        $PIP_BIN install --upgrade pip wheel setuptools
+        $PIP_BIN install --user -r requirements.txt
     }
 else
     if [ -f "requirements.txt" ]; then
@@ -105,13 +123,13 @@ else
 fi
 
 # ----------------------------
-# Step 3: Install SourceForge-Docker-Manager package
+# Step 4: Install editable package (console script)
 # ----------------------------
 echo "[INFO] Installing SourceForge-Docker-Manager package..."
 $PIP_BIN install --user -e .
 
 # ----------------------------
-# Step 4: Completion
+# Step 5: Completion message
 # ----------------------------
 echo "[DONE] SourceForge-Docker-Manager installed!"
 echo "You can now run the CLI via: sf-docker <command>"
