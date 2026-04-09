@@ -40,11 +40,10 @@ if [ "$IS_TERMUX" = true ]; then
 
     # Install build essentials
     pkg update -y
-    pkg install -y clang make git curl wget libffi bzip2 \
-        libcrypt ncurses libsqlite \
-        readline bzip2 tk
-        
-    pkg uninstall python
+    pkg install -y clang make git curl wget libffi zlib xz bzip2 bzip2-dev \
+        libcrypt libcrypt-dev ncurses ncurses-dev libsqlite libsqlite-dev \
+        readline readline-dev tk tk-dev
+
     # Local installation prefix
     PYTHON_PREFIX="$HOME/.localpython310"
     mkdir -p "$PYTHON_PREFIX"
@@ -52,7 +51,7 @@ if [ "$IS_TERMUX" = true ]; then
     # Download Python 3.10.x source
     PYTHON_VERSION="3.10.14"
     mkdir python3
-    cd python3
+    cd /python3
     wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
     tar -xzf Python-${PYTHON_VERSION}.tgz
     cd Python-${PYTHON_VERSION}
@@ -62,14 +61,14 @@ if [ "$IS_TERMUX" = true ]; then
     make -j$(nproc)
     make install
 
-    # Use local Python as 'python' only
+    # Use local Python only for this session
     export PATH="$PYTHON_PREFIX/bin:$PATH"
-    PYTHON_BIN="$PYTHON_PREFIX/bin/python"
-    PIP_BIN="$PYTHON_PREFIX/bin/pip"
+    PYTHON_BIN="$PYTHON_PREFIX/bin/python3"
+    PIP_BIN="$PYTHON_PREFIX/bin/pip3"
 
-    # Verify installation
+    # Verify local installation
     PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    echo "[INFO] Using local Python version: $PY_VER (binary is 'python')"
+    echo "[INFO] Using local Python version: $PY_VER (system Python untouched)"
 fi
 
 # ----------------------------
