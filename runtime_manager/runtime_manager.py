@@ -8,51 +8,15 @@ from pathlib import Path
 import threading
 import sys
 import time
-import json
 
-# ----------------------------
-# Manual Python Data Classes
-# ----------------------------
 
-class ContainerInfo:
-    """
-    Manual data class to store container runtime info.
-    """
-    def __init__(self, container_id: str, process: subprocess.Popen, command: str,
-                 stdout_file: str, stderr_file: str):
-        if not isinstance(container_id, str):
-            raise TypeError("container_id must be str")
-        if not isinstance(command, str):
-            raise TypeError("command must be str")
-
-        self.container_id = container_id
-        self.process = process
-        self.command = command
-        self.started_at = datetime.now().isoformat()
-        self.pid = process.pid
-        self.stdout_file = stdout_file
-        self.stderr_file = stderr_file
-
-    def to_dict(self):
-        return {
-            "container_id": self.container_id,
-            "pid": self.pid,
-            "command": self.command,
-            "started_at": self.started_at,
-            "stdout_file": self.stdout_file,
-            "stderr_file": self.stderr_file
-        }
-
-# ----------------------------
-# Runtime Manager
-# ----------------------------
 class RuntimeManager:
     def __init__(self, fs_manager):
         """
         fs_manager: object with attribute base_path (root folder for containers)
         """
         self.fs_manager = fs_manager
-        self.processes = {}        # container_id -> ContainerInfo
+        self.processes = {}        # container_id -> process info
         self.log_threads = {}      # container_id -> list of log threads
 
     # ----------------------------
@@ -134,16 +98,16 @@ class RuntimeManager:
             preexec_fn=os.setsid if hasattr(os, "setsid") else None
         )
 
-        # Store container info
-        self.processes[container_id] = ContainerInfo(
-            container_id=container_id,
-            process=proc,
-            command=command,
-            stdout_file=str(stdout_file),
-            stderr_file=str(stderr_file)
-        )
+        self.processes[container_id] = {
+            "process": proc,
+            "command": command,
+            "started_at": datetime.now().isoformat(),
+            "pid": proc.pid,
+            "stdout_file": stdout_file,
+            "stderr_file": stderr_file
+        }
 
-        # Start live log streaming
+        # Start live log streaming automatically
         if detach:
             threads = []
             if proc.stdout:
@@ -171,7 +135,7 @@ class RuntimeManager:
         if not info:
             raise RuntimeError(f"Container '{container_id}' is not running")
 
-        proc = info.process
+        proc = info["process"]
         try:
             if hasattr(os, "getpgid"):
                 pgid = os.getpgid(proc.pid)
@@ -231,14 +195,14 @@ class RuntimeManager:
     # ----------------------------
     def is_running(self, container_id):
         info = self.processes.get(container_id)
-        return info and info.process.poll() is None
+        return info and info["process"].poll() is None
 
     # ----------------------------
     # List running containers
     # ----------------------------
     def list_running(self):
         return {
-            cid: info.to_dict()
+            cid: {"pid": info["pid"], "command": info["command"], "started_at": info["started_at"]}
             for cid, info in self.processes.items() if self.is_running(cid)
         }
 

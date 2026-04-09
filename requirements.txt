@@ -1,4 +1,6 @@
-# Python libraries still required for other features
+rust
 pyyaml
-Starlette
+fastapi
 uvicorn
+docker
+pydantic

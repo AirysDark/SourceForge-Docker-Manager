@@ -17,34 +17,7 @@ from network_manager.compose_system import ComposeSystem
 from network_manager.kube import Kube
 from registry.registry_server import run_registry
 
-# ----------------------------
-# Manual Python Classes for Configs
-# ----------------------------
-class ContainerConfig:
-    def __init__(self, name: str, image: str, ports=None):
-        if not isinstance(name, str):
-            raise TypeError(f"name must be str, got {type(name)}")
-        if not isinstance(image, str):
-            raise TypeError(f"image must be str, got {type(image)}")
-        if ports is None:
-            ports = []
-        if not isinstance(ports, list) or not all(isinstance(p, int) for p in ports):
-            raise TypeError("ports must be a list of integers")
-        self.name = name
-        self.image = image
-        self.ports = ports
 
-    def to_dict(self):
-        return {"name": self.name, "image": self.image, "ports": self.ports}
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(name=data["name"], image=data["image"], ports=data.get("ports", []))
-
-
-# ----------------------------
-# Container Engine Application
-# ----------------------------
 class ContainerEngineApp:
     def __init__(self):
         # Core managers

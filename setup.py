@@ -7,14 +7,15 @@ setup(
     author="AirysDark",
     packages=find_packages(),
     install_requires=[
-        "Starlette",
+        "fastapi",
         "uvicorn",
-        "pyyaml",   # keep only packages that need compilation/wheels
+        "docker",
+        "pydantic"
     ],
     entry_points={
         "console_scripts": [
             "sf-docker=sourceforge_docker_manager.main:main_cli"
         ]
     },
-    python_requires=">=3.13",
+    python_requires=">=3.10",
 )

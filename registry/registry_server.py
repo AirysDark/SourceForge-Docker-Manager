@@ -13,35 +13,6 @@ PORT = 5000
 os.makedirs(REGISTRY_DIR, exist_ok=True)
 
 
-# ----------------------------
-# Manual Data Class
-# ----------------------------
-class ImageEntry:
-    def __init__(self, filename: str):
-        if not isinstance(filename, str):
-            raise TypeError("filename must be a string")
-        self.filename = filename
-        self.path = os.path.join(REGISTRY_DIR, filename)
-        self.size = self._get_size()
-        self.created = self._get_created_time()
-
-    def _get_size(self):
-        return os.path.getsize(self.path) // 1024 if os.path.exists(self.path) else 0
-
-    def _get_created_time(self):
-        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(self.path))) if os.path.exists(self.path) else ""
-
-    def to_dict(self):
-        return {
-            "filename": self.filename,
-            "size_kb": self.size,
-            "created": self.created
-        }
-
-
-# ----------------------------
-# HTTP Handler
-# ----------------------------
 class RegistryHandler(http.server.BaseHTTPRequestHandler):
 
     # ----------------------------
@@ -73,7 +44,7 @@ class RegistryHandler(http.server.BaseHTTPRequestHandler):
     # ----------------------------
     def _handle_list(self):
         files = os.listdir(REGISTRY_DIR)
-        images = [ImageEntry(f).to_dict() for f in files if f.endswith(".tar")]
+        images = [f for f in files if f.endswith(".tar")]
         self._send_json({"images": images})
 
     # ----------------------------
@@ -87,7 +58,6 @@ class RegistryHandler(http.server.BaseHTTPRequestHandler):
 
         filepath = os.path.join(REGISTRY_DIR, filename)
         length = int(self.headers.get("Content-Length", 0))
-
         with open(filepath, "wb") as f:
             f.write(self.rfile.read(length))
 
@@ -122,7 +92,7 @@ class RegistryHandler(http.server.BaseHTTPRequestHandler):
     # ----------------------------
     def _handle_webpage(self):
         files = os.listdir(REGISTRY_DIR)
-        images = [ImageEntry(f) for f in files if f.endswith(".tar")]
+        images = [f for f in files if f.endswith(".tar")]
 
         html = """<!DOCTYPE html>
 <html lang="en">
@@ -147,8 +117,11 @@ a:hover { text-decoration: underline; }
 """
 
         for img in images:
-            html += f'<tr><td>{img.filename}</td><td>{img.size}</td><td>{img.created}</td>'
-            html += f'<td><a href="/pull?name={img.filename}">Download</a></td></tr>'
+            path = os.path.join(REGISTRY_DIR, img)
+            size = os.path.getsize(path) // 1024
+            created_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(path)))
+            html += f'<tr><td>{img}</td><td>{size}</td><td>{created_str}</td>'
+            html += f'<td><a href="/pull?name={img}">Download</a></td></tr>'
 
         html += "</table></body></html>"
 

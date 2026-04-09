@@ -34,28 +34,24 @@ class FileSystemManager:
     # ----------------------------
     def _load_hash_cache(self):
         if os.path.exists(self.hash_cache_file):
-            with open(self.hash_cache_file, "r") as f:
-                return json.load(f)
+            return json.load(open(self.hash_cache_file))
         return {}
 
     def _save_hash_cache(self, cache):
-        with open(self.hash_cache_file, "w") as f:
-            json.dump(cache, f, indent=2)
+        json.dump(cache, open(self.hash_cache_file, "w"), indent=2)
 
     def _file_hash(self, filepath, cache):
         stat = os.stat(filepath)
         key = filepath
 
         entry = cache.get(key)
+
         if entry and entry["mtime"] == stat.st_mtime and entry["size"] == stat.st_size:
             return entry["hash"]
 
         sha = hashlib.sha256()
         with open(filepath, "rb") as f:
-            while True:
-                chunk = f.read(8192)
-                if not chunk:
-                    break
+            while chunk := f.read(8192):
                 sha.update(chunk)
 
         h = sha.hexdigest()
@@ -73,6 +69,7 @@ class FileSystemManager:
     # ----------------------------
     def create_container_root(self, container_id):
         path = os.path.join(self.base_path, container_id)
+
         if os.path.exists(path):
             return path
 
@@ -91,13 +88,11 @@ class FileSystemManager:
     # ----------------------------
     def _load_index(self):
         if os.path.exists(self.index_file):
-            with open(self.index_file, "r") as f:
-                return json.load(f)
+            return json.load(open(self.index_file))
         return {}
 
     def _save_index(self, index):
-        with open(self.index_file, "w") as f:
-            json.dump(index, f, indent=2)
+        json.dump(index, open(self.index_file, "w"), indent=2)
 
     def _update_index(self, container_id, snapshot_id):
         index = self._load_index()
@@ -120,8 +115,7 @@ class FileSystemManager:
     def _load_metadata(self, snapshot_id):
         meta_path = os.path.join(self.snapshots_path, snapshot_id, "metadata.json")
         if os.path.exists(meta_path):
-            with open(meta_path, "r") as f:
-                return json.load(f)
+            return json.load(open(meta_path))
         return {}
 
     # ----------------------------
@@ -129,18 +123,22 @@ class FileSystemManager:
     # ----------------------------
     def snapshot_container(self, container_id):
         src = os.path.join(self.base_path, container_id)
+
         if not os.path.exists(src):
             raise FileNotFoundError(f"Container not found: {container_id}")
 
         cache = self._load_hash_cache()
+
         snapshots = self._get_snapshots(container_id)
         prev_meta = {}
+
         if snapshots:
             prev_meta = self._load_metadata(snapshots[-1]).get("files", {})
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_id = f"{container_id}_{ts}"
         dest = os.path.join(self.snapshots_path, snapshot_id)
+
         os.makedirs(dest, exist_ok=True)
 
         new_meta = {}
@@ -150,16 +148,19 @@ class FileSystemManager:
 
         for root, _, files in os.walk(src):
             rel_root = os.path.relpath(root, src)
+
             for file in files:
                 src_file = os.path.join(root, file)
                 rel_file = os.path.normpath(os.path.join(rel_root, file))
 
                 h = self._file_hash(src_file, cache)
+
                 new_meta[rel_file] = h
                 current_files[rel_file] = True
 
                 if rel_file not in prev_meta or prev_meta[rel_file] != h:
                     changed_files.append(rel_file)
+
                     dest_file = os.path.join(dest, rel_file)
                     os.makedirs(os.path.dirname(dest_file), exist_ok=True)
                     shutil.copy2(src_file, dest_file)
@@ -183,10 +184,11 @@ class FileSystemManager:
 
         self._update_index(container_id, snapshot_id)
         self._save_hash_cache(cache)
+
         return snapshot_id
 
     # ----------------------------
-    # Restore Snapshot
+    # Restore (FIXED)
     # ----------------------------
     def restore_snapshot(self, container_id, snapshot_id):
         container_path = os.path.join(self.base_path, container_id)
@@ -198,17 +200,20 @@ class FileSystemManager:
         # Build snapshot chain
         chain = []
         current = snapshot_id
+
         while current:
             chain.append(current)
             meta = self._load_metadata(current)
             current = meta.get("parent")
+
         chain.reverse()
 
-        # Clean tracked files (preserve rootfs)
+        # Clean tracked files ONLY (preserve rootfs)
         for root, _, files in os.walk(container_path):
             for f in files:
                 full = os.path.join(root, f)
                 rel = os.path.relpath(full, container_path)
+
                 if not rel.startswith(("bin", "usr", "lib")):
                     os.remove(full)
 
@@ -216,12 +221,15 @@ class FileSystemManager:
         for snap in chain:
             snap_path = os.path.join(self.snapshots_path, snap)
             meta = self._load_metadata(snap)
+
             for rel_file in meta.get("changed", []):
                 src_file = os.path.join(snap_path, rel_file)
                 dest_file = os.path.join(container_path, rel_file)
+
                 if os.path.exists(src_file):
                     os.makedirs(os.path.dirname(dest_file), exist_ok=True)
                     shutil.copy2(src_file, dest_file)
+
             for rel_file in meta.get("deleted", []):
                 target = os.path.join(container_path, rel_file)
                 if os.path.exists(target):
@@ -263,8 +271,10 @@ class FileSystemManager:
 
     def prune_snapshots(self, container_id, keep_last=3):
         snaps = self._get_snapshots(container_id)
+
         if len(snaps) <= keep_last:
             return
+
         for snap in snaps[:-keep_last]:
             shutil.rmtree(os.path.join(self.snapshots_path, snap), ignore_errors=True)
             self._remove_from_index(container_id, snap)

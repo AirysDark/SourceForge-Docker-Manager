@@ -1,23 +1,24 @@
 #!/bin/bash
 # install_sf_docker.sh
-# Termux: installs SourceForge-Docker-Manager using system Python 3.x + manual modules
+# One-shot installer for SourceForge-Docker-Manager
+# Supports Termux with prebuilt wheels to avoid long builds
 
 # ----------------------------
 # Configuration
 # ----------------------------
 GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
-REQUIREMENTS="requirements.txt"
+WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/sf_docker_wheels.tar.gz"
+WHEEL_DIR="$HOME/sf_docker_wheels"
 
-# Use system Python
 PYTHON_BIN=$(command -v python3 || echo "python3")
-PIP_BIN="$PYTHON_BIN -m pip"
+PIP_BIN=$(command -v pip3 || echo "pip3")
 
 # ----------------------------
 # Step 0: Detect Termux
 # ----------------------------
 IS_TERMUX=false
-if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ]; then
+if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != "" ]; then
     IS_TERMUX=true
     echo "[INFO] Termux environment detected."
 fi
@@ -36,7 +37,7 @@ else
 fi
 
 # ----------------------------
-# Step 2: Verify Python 3.10+
+# Step 2: Ensure Python 3.10+
 # ----------------------------
 PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 REQUIRED_VER="3.10"
@@ -49,13 +50,27 @@ echo "[INFO] Python version $PY_VER OK"
 # ----------------------------
 # Step 3: Install pip dependencies
 # ----------------------------
-echo "[INFO] Installing pip dependencies..."
-$PIP_BIN install --upgrade pip wheel setuptools
-if [ -f "$REQUIREMENTS" ]; then
-    $PIP_BIN install --user -r "$REQUIREMENTS"
+if [ "$IS_TERMUX" = true ]; then
+    echo "[INFO] Termux detected: using prebuilt wheels..."
+    mkdir -p "$WHEEL_DIR"
+    curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels.tar.gz"
+    tar -xzvf "$WHEEL_DIR/sf_docker_wheels.tar.gz" -C "$WHEEL_DIR"
+    echo "[INFO] Installing wheels offline..."
+    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt
 else
-    echo "[WARN] requirements.txt not found, skipping pip installs"
+    if [ -f "requirements.txt" ]; then
+        echo "[INFO] Installing dependencies from PyPI..."
+        $PIP_BIN install --user -r requirements.txt
+    else
+        echo "[WARN] requirements.txt not found, skipping"
+    fi
 fi
+
+# ----------------------------
+# Step 4: Install editable package (console script)
+# ----------------------------
+echo "[INFO] Installing SourceForge-Docker-Manager package..."
+$PIP_BIN install --user -e .
 
 # ----------------------------
 # Step 5: Completion message
