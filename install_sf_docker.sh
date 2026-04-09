@@ -43,7 +43,8 @@ if [ "$IS_TERMUX" = true ]; then
     pkg install -y clang make git curl wget libffi bzip2 \
         libcrypt ncurses libsqlite \
         readline bzip2 tk
-
+        
+    pkg uninstall python
     # Local installation prefix
     PYTHON_PREFIX="$HOME/.localpython310"
     mkdir -p "$PYTHON_PREFIX"
