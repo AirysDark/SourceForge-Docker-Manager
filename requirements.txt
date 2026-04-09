@@ -2,5 +2,4 @@ rust
 pyyaml
 fastapi
 uvicorn
-docker
 pydantic
