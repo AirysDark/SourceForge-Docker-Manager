@@ -1,3 +1,4 @@
 # Python libraries still required for other features
 pyyaml
+Starlette
 uvicorn
