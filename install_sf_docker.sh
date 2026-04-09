@@ -88,16 +88,6 @@ else
 fi
 
 # ----------------------------
-# Step 4: Install manual Python modules
-# ----------------------------
-echo "[INFO] Installing manual Python modules..."
-for mod in runtime_manager docker_support fs_snapshots image_manager network_manager registry engine_core; do
-    if [ -d "./$mod" ]; then
-        $PIP_BIN install --user -e "./$mod"
-    fi
-done
-
-# ----------------------------
 # Step 5: Completion message
 # ----------------------------
 echo "[DONE] SourceForge-Docker-Manager installed!"
