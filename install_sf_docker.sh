@@ -38,7 +38,7 @@ if [ "$IS_TERMUX" = true ]; then
 
     # Set Python 3.10 as default for session
     PYTHON_BIN=$(command -v python3.10)
-    PIP_BIN=$(command -v pip3.10)
+    PIP_BIN="$PYTHON_BIN -m pip"
     export PATH="$(dirname $PYTHON_BIN):$PATH"
 
     PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
