@@ -1,7 +1,8 @@
 #!/bin/bash
 # install_sf_docker.sh
-# Termux: installs Python 3.10 from TUR + prebuilt wheels if available
-# Automatically skips missing wheels and avoids failing on packages Termux doesn't have
+# One-shot installer for SourceForge-Docker-Manager
+# Termux: installs Python 3.10 from TUR + prebuilt wheels
+# Skips pydantic-core if no prebuilt wheel available
 
 # ----------------------------
 # Configuration
@@ -11,12 +12,12 @@ INSTALL_DIR="$HOME/sf_docker_manager"
 WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/download/1.0.0/sf_docker_wheels_termux.tar.gz"
 WHEEL_DIR="$HOME/sf_docker_wheels"
 
-# Default Python/Pip (will override if Python 3.10 installed)
-PYTHON_BIN=$(command -v python3 || echo "python3")
+# Default Python/Pip
+PYTHON_BIN=$(command -v python3.10 || command -v python3)
 PIP_BIN="$PYTHON_BIN -m pip"
 
 # ----------------------------
-# Step 0: Detect Termux
+# Detect Termux
 # ----------------------------
 IS_TERMUX=false
 if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != "" ]; then
@@ -25,26 +26,28 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Install Python 3.10 from TUR
+# Ensure Python 3.10 (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Installing Python 3.10 from Termux repository (TUR)..."
-
+    echo "[INFO] Installing Python 3.10 from Termux repository..."
     pkg update -y
     pkg install -y tur-repo
     pkg install -y python3.10 rust clang make git curl libffi
-
-    # Use Python 3.10 explicitly
     PYTHON_BIN=$(command -v python3.10)
     PIP_BIN="$PYTHON_BIN -m pip"
     export PATH="$(dirname $PYTHON_BIN):$PATH"
-
-    PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    echo "[INFO] Using Python version: $PY_VER"
 fi
 
+# Verify Python version
+PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+if [[ "$PY_VER" < "3.10" ]]; then
+    echo "[ERROR] Python 3.10+ required. Found $PY_VER"
+    exit 1
+fi
+echo "[INFO] Python version $PY_VER OK"
+
 # ----------------------------
-# Step 1: Clone or update repo
+# Clone or update repo
 # ----------------------------
 if [ -d "$INSTALL_DIR" ]; then
     echo "[INFO] Repo exists. Pulling latest changes..."
@@ -57,31 +60,23 @@ else
 fi
 
 # ----------------------------
-# Step 2: Verify Python 3.10+
-# ----------------------------
-PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-if [[ "$PY_VER" < "3.10" ]]; then
-    echo "[ERROR] Python 3.10+ required. Found $PY_VER"
-    exit 1
-fi
-echo "[INFO] Python version $PY_VER OK"
-
-# ----------------------------
-# Step 3: Install pip dependencies using prebuilt wheels
+# Install prebuilt wheels (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Termux detected: installing prebuilt wheels..."
+    echo "[INFO] Installing prebuilt Termux wheels..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
 
-    echo "[INFO] Installing wheels offline..."
-    # Ignore missing wheels and continue
-    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements.txt || \
-        echo "[WARN] Some wheels could not be installed. Missing packages may need manual install."
+    # Temporarily remove pydantic-core from requirements.txt for Termux
+    grep -v "pydantic-core" requirements.txt > requirements_no_pydantic.txt
 
-    # Upgrade pip/setuptools/wheel anyway
-    $PIP_BIN install --upgrade pip wheel setuptools
+    # Install wheels excluding pydantic-core
+    $PIP_BIN install --no-index --find-links="$WHEEL_DIR" -r requirements_no_pydantic.txt || {
+        echo "[WARN] Some prebuilt wheels failed. Installing remaining dependencies from PyPI..."
+        $PIP_BIN install --upgrade pip wheel setuptools
+        $PIP_BIN install --user -r requirements_no_pydantic.txt
+    }
 else
     if [ -f "requirements.txt" ]; then
         echo "[INFO] Installing dependencies from PyPI..."
@@ -92,13 +87,14 @@ else
 fi
 
 # ----------------------------
-# Step 4: Install editable package
+# Install editable package
 # ----------------------------
 echo "[INFO] Installing SourceForge-Docker-Manager package..."
 $PIP_BIN install --user -e .
 
 # ----------------------------
-# Step 5: Completion
+# Completion
 # ----------------------------
 echo "[DONE] SourceForge-Docker-Manager installed!"
+echo "Note: pydantic-core may need to be installed separately on Termux if required."
 echo "You can now run the CLI via: sf-docker <command>"
