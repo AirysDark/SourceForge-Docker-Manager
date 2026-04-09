@@ -12,8 +12,9 @@ WHEEL_URL="https://github.com/AirysDark/SourceForge-Docker-Manager/releases/down
 WHEEL_DIR="$HOME/sf_docker_wheels"
 
 # Default Python/Pip
-PYTHON_BIN=$(command -v python3.10)
+PYTHON_BIN=$(command -v python3.10 || echo "python3")
 PIP_BIN="$PYTHON_BIN -m pip"
+
 # ----------------------------
 # Step 0: Detect Termux
 # ----------------------------
@@ -24,19 +25,22 @@ if [ -f "/data/data/com.termux/files/usr/bin/termux-info" ] || [ "$PREFIX" != ""
 fi
 
 # ----------------------------
-# Step 0b: Force install Python 3.10 from TUR
+# Step 0b: Force install Python 3.10 from TUR (Termux)
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Forcing Python 3.10 installation from TUR..."
+    echo "[INFO] Installing Python 3.10 from Termux repository (TUR)..."
 
-    # Update package lists and install TUR repo
+    # Update packages and add TUR repo
     pkg update -y
     pkg install -y tur-repo
 
-    # Force install Python 3.10 + pip + build tools
-    pkg install -y python3.10 python3.10-pip rust clang make git curl libffi
+    # Install Python 3.10 and build essentials (without python3.10-pip)
+    pkg install -y python3.10 rust clang make git curl libffi
 
-    # Set Python 3.10 as default for session
+    # Ensure pip is available for Python 3.10
+    $PYTHON_BIN -m ensurepip --upgrade
+
+    # Set Python 3.10 as session default
     PYTHON_BIN=$(command -v python3.10)
     PIP_BIN="$PYTHON_BIN -m pip"
     export PATH="$(dirname $PYTHON_BIN):$PATH"
@@ -72,7 +76,7 @@ echo "[INFO] Python version $PY_VER OK"
 # Step 3: Install pip dependencies
 # ----------------------------
 if [ "$IS_TERMUX" = true ]; then
-    echo "[INFO] Installing prebuilt Termux wheels..."
+    echo "[INFO] Termux detected: installing prebuilt wheels..."
     mkdir -p "$WHEEL_DIR"
     curl -L "$WHEEL_URL" -o "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz"
     tar -xzvf "$WHEEL_DIR/sf_docker_wheels_termux.tar.gz" -C "$WHEEL_DIR"
