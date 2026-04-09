@@ -1,6 +1,13 @@
-rust
+# External dependencies
 pyyaml
 fastapi
 uvicorn
-docker
-pydantic
+
+# Manual modules (editable installs)
+-e ./runtime_manager
+-e ./docker_support
+-e ./fs_snapshots
+-e ./image_manager
+-e ./network_manager
+-e ./registry
+-e ./engine_core
