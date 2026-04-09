@@ -1,4 +1,4 @@
-# network_manager/kube_lite.py
+# network_manager/kube.py
 
 import threading
 import time
@@ -6,10 +6,42 @@ import os
 import json
 from datetime import datetime
 
+# ----------------------------
+# Manual Python Data Classes
+# ----------------------------
+class DeploymentSpec:
+    def __init__(self, name: str, image: str, replicas: int = 1, port: int = 8000):
+        if not isinstance(name, str):
+            raise TypeError("name must be a string")
+        if not isinstance(image, str):
+            raise TypeError("image must be a string")
+        if not isinstance(replicas, int) or replicas < 0:
+            raise TypeError("replicas must be a non-negative integer")
+        if not isinstance(port, int):
+            raise TypeError("port must be an integer")
+        self.name = name
+        self.image = image
+        self.replicas = replicas
+        self.port = port
 
+    def to_dict(self):
+        return {"name": self.name, "image": self.image, "replicas": self.replicas, "port": self.port}
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            name=data["name"],
+            image=data["image"],
+            replicas=data.get("replicas", 1),
+            port=data.get("port", 8000)
+        )
+
+# ----------------------------
+# KubeLite Orchestrator
+# ----------------------------
 class KubeLite:
     """
-    Full-featured lightweight orchestrator with:
+    Lightweight orchestrator with:
     - Multi-replica deployments
     - Self-healing & restart
     - Persistent service state
@@ -50,7 +82,11 @@ class KubeLite:
     # ----------------------------
     def load(self, filepath):
         with open(filepath, "r") as f:
-            return json.load(f)
+            data = json.load(f)
+        deployments = {}
+        for name, spec in data.get("deployments", {}).items():
+            deployments[name] = DeploymentSpec.from_dict(spec)
+        return deployments
 
     # ----------------------------
     # Start / Stop
@@ -82,32 +118,27 @@ class KubeLite:
     # ----------------------------
     # Reconciliation Logic
     # ----------------------------
-    def _reconcile(self, config):
-        deployments = config.get("deployments", {})
-
+    def _reconcile(self, deployments):
         for name, spec in deployments.items():
-            desired = spec.get("replicas", 1)
+            desired = spec.replicas
             existing = self._get_existing(name)
 
             # Scale UP
-            if len(existing) < desired:
-                for i in range(len(existing), desired):
-                    cid = f"{name}-{i}"
-                    print(f"[KubeLite] Creating {cid}")
-                    self.engine.create_container_from_image(spec["image"], cid, self.image_mgr)
-                    self.engine.start_container(cid, self.runtime_mgr)
-                    port_base = spec.get("port", 8000)
-                    self.network_mgr.start_container_network(cid, port_base + i)
+            for i in range(len(existing), desired):
+                cid = f"{name}-{i}"
+                print(f"[KubeLite] Creating {cid}")
+                self.engine.create_container_from_image(spec.image, cid, self.image_mgr)
+                self.engine.start_container(cid, self.runtime_mgr)
+                self.network_mgr.start_container_network(cid, spec.port + i)
 
             # Scale DOWN
-            elif len(existing) > desired:
-                for cid in existing[desired:]:
-                    print(f"[KubeLite] Removing {cid}")
-                    try:
-                        self.engine.stop_container(cid, self.runtime_mgr)
-                        self.engine.remove_container(cid)
-                    except Exception:
-                        pass
+            for cid in existing[desired:]:
+                print(f"[KubeLite] Removing {cid}")
+                try:
+                    self.engine.stop_container(cid, self.runtime_mgr)
+                    self.engine.remove_container(cid)
+                except Exception:
+                    pass
 
             # Self-Healing
             for cid in self._get_existing(name):
@@ -118,7 +149,7 @@ class KubeLite:
         # Auto-Snapshot
         self._auto_snapshot()
         # Update state
-        self._update_services(config)
+        self._update_services(deployments)
 
     # ----------------------------
     # Auto Snapshot
@@ -144,9 +175,8 @@ class KubeLite:
     # ----------------------------
     # Update Load Balancer State
     # ----------------------------
-    def _update_services(self, config):
+    def _update_services(self, deployments):
         with self.lock:
-            deployments = config.get("deployments", {})
             for name in deployments:
                 pods = self._get_existing(name)
                 if pods:
@@ -243,8 +273,8 @@ class KubeLite:
             if replicas > current:
                 for i in range(current, replicas):
                     cid = f"{service_name}-{i}"
-                    spec = {"image": service_name}  # simple default image mapping
-                    self.engine.create_container_from_image(spec["image"], cid, self.image_mgr)
+                    spec = DeploymentSpec(service_name, service_name)  # simple default image mapping
+                    self.engine.create_container_from_image(spec.image, cid, self.image_mgr)
                     self.engine.start_container(cid, self.runtime_mgr)
                     self.network_mgr.start_container_network(cid, 8000 + i)
             elif replicas < current:
@@ -253,5 +283,5 @@ class KubeLite:
                     self.engine.remove_container(cid)
 
             # Update state
-            self._update_services({"deployments": {service_name: {"replicas": replicas}}})
+            self._update_services({service_name: DeploymentSpec(service_name, service_name, replicas)})
             print(f"[KubeLite] Scaling complete for {service_name}")
