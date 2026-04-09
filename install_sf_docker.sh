@@ -8,7 +8,6 @@
 # ----------------------------
 GITHUB_REPO="https://github.com/AirysDark/SourceForge-Docker-Manager.git"
 INSTALL_DIR="$HOME/sf_docker_manager"
-WHEEL_DIR="$HOME/sf_docker_wheels"
 REQUIREMENTS="requirements.txt"
 
 # Default Python/Pip
@@ -58,7 +57,7 @@ else
 fi
 
 # ----------------------------
-# Step 2: Ensure Python 3.10+
+# Step 2: Verify Python 3.10+
 # ----------------------------
 PY_VER=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 if [[ "$PY_VER" < "3.10" ]]; then
@@ -68,14 +67,18 @@ fi
 echo "[INFO] Python version $PY_VER OK"
 
 # ----------------------------
-# Step 3: Install pip dependencies
+# Step 3: Install pip dependencies from PyPI
 # ----------------------------
-echo "[INFO] Installing dependencies..."
+echo "[INFO] Installing dependencies from PyPI..."
 $PIP_BIN install --upgrade pip wheel setuptools
-$PIP_BIN install --user -r "$REQUIREMENTS"
+if [ -f "$REQUIREMENTS" ]; then
+    $PIP_BIN install --user -r "$REQUIREMENTS"
+else
+    echo "[WARN] requirements.txt not found, skipping"
+fi
 
 # ----------------------------
-# Step 4: Install editable modules
+# Step 4: Install editable manual Python modules
 # ----------------------------
 echo "[INFO] Installing manual Python modules..."
 for mod in runtime_manager docker_support fs_snapshots image_manager network_manager registry engine_core; do
